@@ -1,195 +1,164 @@
-import { useState, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
-import { Row, Col, Image } from 'react-bootstrap';
-import styles from './BlogDetail.module.scss';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import { Link, useNavigate } from 'react-router-dom';
-import BlogSameAuthor from './BlogSameAuthor';
-import BlogHighlights from './BlogHighlights';
-import Topics from '../blog/Topics';
-import timeSince from '../utils/timeSince/timeSince';
-import { apiURL } from '../../context/constants';
-import Cookies from 'js-cookie';
-import { useSelector } from 'react-redux';
-import Reaction from './Reaction';
-import Tippy from '../utils/tippy/Tippy';
-import MainButton from '../utils/button/MainButton';
-import io from 'socket.io-client';
-import remarkGfm from 'remark-gfm';
-
-const socket = io.connect(apiURL);
+import { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { Row, Col, Image } from 'react-bootstrap'
+import styles from './BlogDetail.module.scss'
+import 'bootstrap/dist/css/bootstrap.min.css'
+import { Link, useNavigate } from 'react-router-dom'
+import BlogSameAuthor from './BlogSameAuthor'
+import BlogHighlights from './BlogHighlights'
+import { timeSince } from '../../utils/format/index'
+import { apiURL } from '../../context/constants'
+import Cookies from 'js-cookie'
+import { useSelector } from 'react-redux'
+import Reaction from './Reaction'
+import Tippy from '../../utils/tippy/Tippy'
+import consoleLog from '../../utils/console-log/consoleLog'
+import MainButton from '../../utils/button/MainButton'
+import remarkGfm from 'remark-gfm'
 
 const BlogDetail = ({ blog, blogHighlight }) => {
-  const user = useSelector((state) => state.user);
-  const navigate = useNavigate();
+  const user = useSelector((state) => state.user)
+  const navigate = useNavigate()
 
-  const [likeCount, setLikeCount] = useState(blog.likes);
-  const [isLike, setIsLike] = useState(blog.likes.includes(user.userId));
-  const [isShowComment, setIsShowComment] = useState(false);
-  const [commentData, setCommentData] = useState(blog.comments);
-  const [bookmarkData, setBookmarkData] = useState(null);
-  const [isShowVerifyBar, setIsShowVerifyBar] = useState(false);
-  const [tags, setTags] = useState(null);
+  const [likeCount, setLikeCount] = useState(blog.likes)
+  const [isLike, setIsLike] = useState(blog.likes.includes(user.userId))
+  const [bookmarkData, setBookmarkData] = useState(null)
 
   useEffect(() => {
-    socket.on('comment', (comment) => {
-      setCommentData((prev) => {
-        return [comment, ...prev];
-      });
-    });
-  }, []);
+    ;(async () => {
+      const { token } = Cookies.get('token')
+      if (!token) return
 
-  useEffect(() => {
-    document.body.style.overflow = isShowComment ? 'hidden' : 'overlay';
-  }, [isShowComment]);
+      const url = `${apiURL}/me/bookmark`
+      const data = await getBookmark(url, token)
 
-  useEffect(() => {
-    setIsLike(likeCount.includes(user.userId));
-  }, [user.userId, likeCount]);
+      setBookmarkData(data.bookmark)
+    })()
+  }, [])
 
-  const like = async () => {
+  const getBookmark = async (url, token) => {
     try {
-      const token = Cookies.get('token');
-      if (!token) return navigate('/login');
-
-      const res = await fetch(`${apiURL}/blog/like`, {
-        method: 'PUT',
-        body: JSON.stringify({ blogId: blog._id }),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json();
-      data.likes.length === 0 ? setLikeCount([]) : setLikeCount(data.likes);
-      addNotification(data);
-      console.log(data);
-    } catch (error) {
-      console.log(error.message);
-    }
-  };
-
-  const addNotification = async (data) => {
-    try {
-      await fetch(`${apiURL}/notification/new-notification`, {
-        method: 'POST',
-        body: JSON.stringify({
-          description: 'đã yêu thích bài viết của bạn.',
-          slug: data.slug,
-          notifiedBy: user.userId,
-          sendFor: user.userId === data.postedBy ? null : data.postedBy,
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-    } catch (error) {
-      console.log(error.message);
-    }
-  };
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    (async () => {
-      try {
-        const token = Cookies.get('token');
-        if (!token) return;
-
-        const res = await fetch(
-          `${apiURL}/me/bookmark`,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
+      return (
+        await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
           },
-          {
-            signal: controller.signal,
-          }
-        );
-        const data = await res.json();
-        setBookmarkData(data.bookmark);
-      } catch (error) {
-        console.log(error.message);
-      }
-    })();
-
-    return () => controller?.abort();
-  }, []);
+        })
+      ).json()
+    } catch (error) {
+      consoleLog(error.message)
+    }
+  }
 
   const bookmark = async (blogId) => {
+    const url = `${apiURL}/me/bookmark`
+    const data = await patchBookmark(url, blogId)
+
+    setBookmarkData(data.bookmark)
+  }
+
+  const patchBookmark = async (url, blogId) => {
+    const token = Cookies.get('token')
+    if (!token) return navigate('/login')
+
     try {
-      const token = Cookies.get('token');
-      if (!token) return navigate('/login');
-
-      const res = await fetch(`${apiURL}/me/bookmark`, {
-        method: 'PUT',
-        body: JSON.stringify({ blogId }),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json();
-      setBookmarkData(data.bookmark);
+      return (
+        await fetch(url, {
+          method: 'PATCH',
+          body: JSON.stringify({ blogId }),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      ).json()
     } catch (error) {
-      console.log(error.message);
+      consoleLog(error.message)
     }
-  };
+  }
 
-  const verifyBlog = async (isVerified, blogId) => {
+  const handleLike = async () => {
+    const url = isLike
+      ? `${apiURL}/blog/unlike/${blog._id}`
+      : `${apiURL}/blog/like/${blog._id}`
+    const data = await patchLike(url)
+
+    if (data.likes && data.likes.length > 0) {
+      setLikeCount(data.likes)
+      setIsLike(data.likes.includes(user.userId))
+    } else {
+      setIsLike(false)
+      setLikeCount([])
+    }
+  }
+
+  const patchLike = async (url) => {
+    const token = Cookies.get('token')
+    if (!token) return navigate('/login')
+
     try {
-      await fetch(`${apiURL}/admin/blog/verify`, {
-        method: 'POST',
-        body: JSON.stringify({ isVerified, blogId }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      return (
+        await fetch(url, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      ).json()
     } catch (error) {
-      console.log(error.message);
+      consoleLog(error.message)
+    }
+  }
+
+  const notAllowBlog = async () => {
+    const url = `${apiURL}/admin/blog/verify`
+    await patchVerifyBlog(url, false)
+  }
+
+  const allowBlog = async () => {
+    const url = `${apiURL}/admin/blog/verify`
+    await patchVerifyBlog(url, true)
+  }
+
+  const patchVerifyBlog = async (url, isVerified) => {
+    const token = Cookies.get('token')
+    if (!token) return
+
+    try {
+      return (
+        await fetch(url, {
+          method: 'PATCH',
+          body: JSON.stringify({ isVerified, blogId: blog._id }),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      ).json()
+    } catch (error) {
+      consoleLog(error.message)
     } finally {
-      setIsShowVerifyBar(false);
-      navigate('/admin/blog');
+      navigate('/admin/blog')
     }
-  };
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    (async () => {
-      try {
-        const res = await fetch(`${apiURL}/blog/get-tag`, {
-          signal: controller.signal,
-        });
-        const data = await res.json();
-        setTags(data);
-      } catch (error) {
-        console.log(error.message);
-      }
-    })();
-
-    return () => controller?.abort();
-  }, []);
+  }
 
   return (
     <Row className={styles.wrapper}>
-      {!blog.isVerified && user.isAdmin && !isShowVerifyBar && (
+      {!blog.isVerified && user.isAdmin && (
         <div className={styles.verifyBar}>
           <MainButton
             primary={true}
             className={`${styles.button} ${styles.cancel}`}
-            onClick={() => verifyBlog(false, blog._id)}
+            onClick={notAllowBlog}
           >
             Không xét duyệt
           </MainButton>
           <MainButton
             primary={true}
             className={styles.button}
-            onClick={() => verifyBlog(true, blog._id)}
+            onClick={allowBlog}
           >
             Xét duyệt bài viết
           </MainButton>
@@ -209,13 +178,10 @@ const BlogDetail = ({ blog, blogHighlight }) => {
           <p className={styles.userTitle}>{blog.postedBy.bio}</p>
           <hr />
           <Reaction
-            commentData={commentData}
             isLike={isLike}
             likeCount={likeCount.length}
-            like={like}
-            setShowComment={() => setIsShowComment(true)}
-            blogId={blog._id}
-            setCommentData={setCommentData}
+            handleLike={handleLike}
+            blog={blog}
           />
         </div>
       </Col>
@@ -223,13 +189,11 @@ const BlogDetail = ({ blog, blogHighlight }) => {
         <h3 className={styles.heading}>{blog.title}</h3>
         <div className={styles.header}>
           <div className={styles.user}>
-            <Link to={`/${blog.postedBy.slug}`}>
-              <Image src={blog.postedBy.photoURL} className={styles.avatar} />
-            </Link>
+            <Image src={blog.postedBy.photoURL} className={styles.avatar} />
+
             <div className={styles.info}>
-              <Link to={`/${blog.postedBy.slug}`}>
-                <p className={styles.name}>{blog.postedBy.fullName}</p>
-              </Link>
+              <p className={styles.name}>{blog.postedBy.fullName}</p>
+
               <p className={styles.time}>
                 {timeSince(blog.createdAt)}{' '}
                 <span className={styles.dot}>.</span>
@@ -254,10 +218,7 @@ const BlogDetail = ({ blog, blogHighlight }) => {
               className={styles.menuWrapper}
             >
               {user.userId === blog.postedBy._id && (
-                <Link
-                  to={`/edit-blog/${blog.slug}`}
-                  className={styles.menuItem}
-                >
+                <Link to={`/edit-post/${blog._id}`} className={styles.menuItem}>
                   <i className="fa-solid fa-pen"></i>
                   <span>Sửa bài viết</span>
                 </Link>
@@ -265,9 +226,9 @@ const BlogDetail = ({ blog, blogHighlight }) => {
               <div data-href={window.location.href} className="fb-share-button">
                 <a
                   rel="noopener noreferrer"
+                  className={styles.menuItem}
                   target="_blank"
                   href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Ff8clone.tk%2F&amp;src=sdkpreparse"
-                  className={styles.menuItem}
                 >
                   <i className="fa-brands fa-facebook"></i>
                   <span>Chia sẻ lên Facebook</span>
@@ -275,15 +236,14 @@ const BlogDetail = ({ blog, blogHighlight }) => {
               </div>
               <a
                 rel="noopener noreferrer"
+                className={styles.menuItem}
                 target="_blank"
                 href={`https://twitter.com/share?ref_src=twsrc%5Etfw&url=${window.location.href}`}
-                className={styles.menuItem}
                 data-show-count="false"
               >
                 <i className="fa-brands fa-twitter"></i>
                 <span>Chia sẻ lên Twitter</span>
               </a>
-
               <a
                 href={`mailto:mail@mail.com;body=${window.location.href}`}
                 className={styles.menuItem}
@@ -292,20 +252,14 @@ const BlogDetail = ({ blog, blogHighlight }) => {
                 <span>Chia sẻ tới Email</span>
               </a>
               <div
-                className={styles.menuItem}
                 onClick={() =>
                   navigator.clipboard.writeText(window.location.href)
                 }
+                className={styles.menuItem}
               >
                 <i className="fa-solid fa-link"></i>
                 <span>Sao chép liên kết</span>
               </div>
-              {user.userId !== blog.postedBy._id && (
-                <div className={styles.menuItem}>
-                  <i className="fa-solid fa-flag"></i>
-                  <span>Báo cáo bài viết</span>
-                </div>
-              )}
             </Tippy>
           </div>
         </div>
@@ -315,13 +269,10 @@ const BlogDetail = ({ blog, blogHighlight }) => {
           remarkPlugins={[remarkGfm]}
         />
         <Reaction
-          commentData={commentData}
           isLike={isLike}
           likeCount={likeCount.length}
-          like={like}
-          setShowComment={() => setIsShowComment(true)}
-          blogId={blog._id}
-          setCommentData={setCommentData}
+          handleLike={handleLike}
+          blog={blog}
         />
         {blog.tags && (
           <div className={styles.tags}>
@@ -335,10 +286,9 @@ const BlogDetail = ({ blog, blogHighlight }) => {
 
         <BlogSameAuthor postedBy={blog.postedBy._id} blogId={blog._id} />
         <BlogHighlights blogHighlight={blogHighlight} />
-        {tags && tags.length > 0 && <Topics tags={tags} />}
       </Col>
     </Row>
-  );
-};
+  )
+}
 
-export default BlogDetail;
+export default BlogDetail

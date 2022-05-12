@@ -1,161 +1,149 @@
-import React, {
-  useRef,
-  useState,
-  useEffect,
-  Suspense,
-  useContext,
-} from 'react';
-import styles from './EditPost.module.scss';
-import Editor from 'react-markdown-editor-lite';
-import ReactMarkdown from 'react-markdown';
-import 'react-markdown-editor-lite/lib/index.css';
-import '../../sass/_myIcon.scss';
-import Header from '../../components/main-layout/nav/Header';
-import '../../sass/_markdownEditor.scss';
-import ContentEditable from '../../components/utils/content-editable/ContentEditable';
-import Modal from '../../components/new-post/Modal';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { apiURL } from '../../context/constants';
-import { BlogContext } from '../../context/BlogContext';
-import Cookies from 'js-cookie';
-import MainToast from '../../components/utils/toast/MainToast';
+import React, { useRef, useState, useEffect, Suspense, useContext } from 'react'
+import styles from './EditPost.module.scss'
+import Editor from 'react-markdown-editor-lite'
+import ReactMarkdown from 'react-markdown'
+import 'react-markdown-editor-lite/lib/index.css'
+import '../../sass/_myIcon.scss'
+import Header from '../../components/layout/nav/Header'
+import '../../sass/_markdownEditor.scss'
+import ContentEditable from '../../utils/input/ContentEditable'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { apiURL } from '../../context/constants'
+import { PostContext } from '../../context/PostContext'
+import Cookies from 'js-cookie'
+import SubLoading from '../../utils/loading/SubLoading'
+import { ModalContext } from '../../context/ModalContext'
+import consoleLog from '../../utils/console-log/consoleLog'
+import { SocketContext } from '../../context/SocketContext'
+import { useSelector } from 'react-redux'
+import { Row } from 'react-bootstrap'
 
-const Footer = React.lazy(() =>
-  import('../../components/main-layout/footer/Footer')
-);
+const Footer = React.lazy(() => import('../../components/layout/footer/Footer'))
 
 const EditPost = () => {
-  const mdEditor = useRef(null);
-  const titleRef = useRef(null);
+  const mdEditor = useRef(null)
+  const titleRef = useRef(null)
 
-  const location = useLocation();
-  const navigate = useNavigate();
+  const location = useLocation()
+  const navigate = useNavigate()
 
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [editStatus, setEditStatus] = useState({
-    isSuccess: false,
-    show: false,
-  });
+  const { showModal, setIsValid } = useContext(PostContext)
+  const { onShowError } = useContext(ModalContext)
+  const { current } = useContext(SocketContext).socket
+  const user = useSelector((state) => state.user)
 
-  const { showModal, setIsValid } = useContext(BlogContext);
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [loading, setLoading] = useState(true)
 
-  const LIMIT_TITLE_LENGTH = '190';
-
-  useEffect(() => {
-    document.title = title;
-
-    title && content ? setIsValid(true) : setIsValid(false);
-  }, [title, content, setIsValid]);
+  const LIMIT_TITLE_LENGTH = '190'
 
   useEffect(() => {
-    const controller = new AbortController();
+    document.title = title
 
-    (async () => {
-      try {
-        const res = await fetch(`${apiURL}/blog/${location.pathname}`);
+    title && content ? setIsValid(true) : setIsValid(false)
+  }, [title, content, setIsValid])
 
-        const data = await res.json();
+  useEffect(() => {
+    ;(async () => {
+      setLoading(true)
+      const url = `${apiURL}/blog${location.pathname}`
+      const data = await getPost(url)
 
-        titleRef.current.innerText = data.blogSlug.title;
-        setTitle(data.blogSlug.title);
-        setContent(data.blogSlug.content);
-
-        document.title = data.blogSlug.title;
-      } catch (error) {
-        console.log(error.message);
+      if (data) {
+        setTitle(data.title)
+        setContent(data.content)
+        setLoading(false)
+        titleRef.current.innerText = data.title
       }
-    })();
+    })()
+  }, [location.pathname])
 
-    return () => controller?.abort();
-  }, [location.pathname]);
-
-  const blogData = async () => {
+  const getPost = async (url) => {
     try {
-      const token = Cookies.get('token');
-      if (!token) return;
-
-      const res = await fetch(`${apiURL}/blog/${location.pathname}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          title: titleRef.current.innerText,
-          content: mdEditor.current.getMdValue(),
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json();
-
-      const isEditBlogSuccess = data.success;
-
-      if (isEditBlogSuccess) {
-        navigate(-1);
-        setEditStatus((prev) => {
-          return {
-            ...prev,
-            isSuccess: true,
-            show: true,
-          };
-        });
-      } else {
-        setEditStatus((prev) => {
-          return {
-            ...prev,
-            isSuccess: false,
-            show: true,
-          };
-        });
-      }
+      return (await fetch(url)).json()
     } catch (error) {
-      console.log(error.message);
+      consoleLog(error.message)
     }
-  };
+  }
 
-  const editorChange = ({ text }) => setContent(text);
+  const submitEditPost = async () => {
+    const url = `${apiURL}/blog${location.pathname}`
+    const data = await putEditPost(url)
 
-  return (
+    if (data.success) navigate(-1)
+
+    if (current && !user.isAdmin) {
+      current.emit('post', {
+        sender: user,
+        postId: data.blog._id,
+        receiverId: process.env.REACT_APP_ADMIN_ID,
+        post: data.blog,
+        description: 'vừa chỉnh sửa bài viết và đang chờ được xét duyệt',
+        notificationType: 'post',
+        postType: 'blogs',
+        createdAt: new Date(),
+      })
+    }
+  }
+
+  const putEditPost = async (url) => {
+    const token = Cookies.get('token')
+    if (!token) return
+
+    try {
+      return (
+        await fetch(url, {
+          method: 'PUT',
+          body: JSON.stringify({
+            title: titleRef.current.innerText,
+            content: mdEditor.current.getMdValue(),
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      ).json()
+    } catch (error) {
+      consoleLog(error.message)
+      onShowError()
+    }
+  }
+
+  return loading ? (
+    <SubLoading />
+  ) : (
     <>
       {!showModal && (
         <>
-          <Header blogData={blogData} />
-          <div className={styles.wrapper}>
-            <ContentEditable
-              text={'Tiêu đề'}
-              className={styles.contentEditable}
-              onInput={(e) => setTitle(e.target.innerText)}
-              maxLength={LIMIT_TITLE_LENGTH}
-              ref={titleRef}
-            />
-            <Editor
-              ref={mdEditor}
-              value={content}
-              onChange={editorChange}
-              renderHTML={(text) => <ReactMarkdown children={text} />}
-            />
-          </div>
+          <Header submitEditPost={submitEditPost} />
+          <Row>
+            <div className={styles.wrapper}>
+              <ContentEditable
+                text={'Tiêu đề'}
+                className={styles.contentEditable}
+                onInput={(e) => setTitle(e.target.innerText)}
+                maxLength={LIMIT_TITLE_LENGTH}
+                ref={titleRef}
+              />
+              <Editor
+                ref={mdEditor}
+                value={content}
+                className={styles['rc-md-editor']}
+                onChange={({ text }) => setContent(text)}
+                renderHTML={(text) => <ReactMarkdown children={text} />}
+              />
+            </div>
+          </Row>
         </>
       )}
-      <MainToast
-        status={editStatus}
-        setStatus={() =>
-          setEditStatus((prev) => {
-            return {
-              ...prev,
-              show: false,
-            };
-          })
-        }
-        successText={'Chỉnh sửa bài viết thành công!'}
-        failText={'Chỉnh sửa bài viêt không thành công!'}
-      />
+
       <Suspense fallback={<div>Loading...</div>}>
         <Footer />
       </Suspense>
     </>
-  );
-};
+  )
+}
 
-export default EditPost;
+export default EditPost

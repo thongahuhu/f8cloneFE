@@ -1,99 +1,112 @@
-import { useEffect, useState } from 'react';
-import { Form, Modal } from 'react-bootstrap';
-import { useDispatch } from 'react-redux';
-import { createVideo } from '../../actions/userAction';
-import { apiURL } from '../../context/constants';
-import MainButton from '../utils/button/MainButton';
-import MainTable from '../utils/table/MainTable';
-import styles from './AdminVideo.module.scss';
-import youtubeDurationFormat from 'youtube-duration-format';
+import Cookies from 'js-cookie'
+import { useContext, useEffect, useState } from 'react'
+import { Form } from 'react-bootstrap'
+import { apiURL } from '../../context/constants'
+import { ModalContext } from '../../context/ModalContext'
+import consoleLog from '../../utils/console-log/consoleLog'
+import { formatDateToLocaleString } from '../../utils/format/index'
+import ModalConfirm from '../../utils/modal/ModalConfirm'
+import MainTable from '../../utils/table/MainTable'
+import styles from './AdminVideo.module.scss'
 
-const AdminVideo = ({ videoData }) => {
-  const dispatch = useDispatch();
+const AdminVideo = ({ videoData, setVideoData }) => {
+  const { onShowError, onShowConfirm, onHideConfirm } = useContext(ModalContext)
 
-  const [isShowDeleteModal, setIsShowDeleteModal] = useState(false);
-  const [checkboxChosen, setCheckboxChosen] = useState([]);
-  const [checkboxChosenAll, setCheckboxChosenAll] = useState([]);
-  const [isCheckboxChosenAll, setIsCheckboxChosenAll] = useState(false);
+  const [checkboxChosen, setCheckboxChosen] = useState([])
+  const [checkboxChosenAll, setCheckboxChosenAll] = useState([])
+  const [isCheckboxChosenAll, setIsCheckboxChosenAll] = useState(false)
 
   useEffect(() => {
-    const videoId = videoData.map((video) => video._id);
-    setCheckboxChosenAll(videoId);
-  }, [videoData]);
-
-  const showDeleteModal = () => setIsShowDeleteModal((prev) => !prev);
-
-  const formatYoutubeDuration = (duration) => {
-    const durationFormatted = youtubeDurationFormat(duration);
-    return durationFormatted;
-  };
-
-  const formatDateToLocaleString = (date) => new Date(date).toLocaleString();
+    const videoId = videoData.map((video) => video._id)
+    setCheckboxChosenAll(videoId)
+  }, [videoData])
 
   const checkBoxChosenSingle = (id) =>
     setCheckboxChosen((prev) => {
-      const isChosen = prev.includes(id);
+      const isChosen = prev.includes(id)
       if (isChosen) {
-        const newChosen = prev.filter((item) => item !== id);
-        setIsCheckboxChosenAll(false);
-        return newChosen;
+        const newChosen = prev.filter((item) => item !== id)
+        setIsCheckboxChosenAll(false)
+        return newChosen
       }
-      const newChosen = [...prev, id];
-      newChosen.length === checkboxChosenAll.length &&
-        setIsCheckboxChosenAll(true);
-      return newChosen;
-    });
 
-  const handleCheckBoxChosenAll = () => {
-    if (!isCheckboxChosenAll) {
-      setCheckboxChosen(checkboxChosenAll);
-      setIsCheckboxChosenAll(true);
-    } else {
-      setCheckboxChosen([]);
-      setIsCheckboxChosenAll(false);
-    }
-  };
+      const newChosen = [...prev, id]
+      const isChosenAllCheckbox = newChosen.length === checkboxChosenAll.length
+      isChosenAllCheckbox && setIsCheckboxChosenAll(true)
+      return newChosen
+    })
+
+  const uncheckAll = () => {
+    setCheckboxChosen([])
+    setIsCheckboxChosenAll(false)
+  }
+
+  const checkAll = () => {
+    setCheckboxChosen(checkboxChosenAll)
+    setIsCheckboxChosenAll(true)
+  }
+
+  const handleCheckBoxChosenAll = () =>
+    isCheckboxChosenAll ? uncheckAll() : checkAll()
 
   const deleteVideoIsChosen = async () => {
-    try {
-      showDeleteModal();
-      const res = await fetch(`${apiURL}/admin/video/delete-soft`, {
-        method: 'POST',
-        body: JSON.stringify({ videoId: checkboxChosen }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+    onHideConfirm()
 
-      const data = await res.json();
-      dispatch(createVideo({ videoData: data.video }));
+    const url = `${apiURL}/admin/video/delete-soft`
+    const data = await deleteVideo(url)
+
+    setVideoData(data)
+    uncheckAll()
+  }
+
+  const deleteVideo = async (url) => {
+    const token = Cookies.get('token')
+    if (!token) return
+
+    try {
+      return (
+        await fetch(url, {
+          method: 'DELETE',
+          body: JSON.stringify({ videoId: checkboxChosen }),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      ).json()
     } catch (error) {
-      console.log(error.message);
-    } finally {
-      setCheckboxChosen([]);
-      setIsCheckboxChosenAll(false);
+      consoleLog(error.message)
+      onShowError()
     }
-  };
+  }
 
   const changePopularState = async (videoId, isPopular) => {
-    try {
-      const res = await fetch(`${apiURL}/admin/video/add-popular`, {
-        method: 'POST',
-        body: JSON.stringify({ videoId, isPopular }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+    const url = `${apiURL}/admin/video/add-popular`
+    const data = await patchPopular(url, videoId, isPopular)
 
-      const data = await res.json();
-      dispatch(createVideo({ videoData: data.video }));
+    setVideoData(data)
+  }
+
+  const patchPopular = async (url, videoId, isPopular) => {
+    const token = Cookies.get('token')
+    if (!token) return
+
+    try {
+      return (
+        await fetch(url, {
+          method: 'PATCH',
+          body: JSON.stringify({ videoId, isPopular }),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      ).json()
     } catch (error) {
-      console.log(error.message);
-    } finally {
-      setCheckboxChosen([]);
-      setIsCheckboxChosenAll(false);
+      consoleLog(error.message)
+      onShowError()
     }
-  };
+  }
 
   return (
     <>
@@ -108,11 +121,10 @@ const AdminVideo = ({ videoData }) => {
                 />
               </Form>
             </th>
-            <th className={styles.tableItem}>STT</th>
-            <th className={styles.tableItem}>Tên video</th>
-            <th className={styles.tableItem}>Thời gian</th>
-            <th className={styles.tableItem}>Tình trạng</th>
-            <th className={styles.tableItem}>Thời gian tạo</th>
+            <th>STT</th>
+            <th>Tên video</th>
+            <th>Tình trạng</th>
+            <th>TG tạo</th>
           </tr>
         </thead>
         <tbody>
@@ -127,17 +139,10 @@ const AdminVideo = ({ videoData }) => {
                   />
                 </Form>
               </td>
-              <td className={styles.tableItem}>{index + 1}</td>
+              <td>{index + 1}</td>
               <td className={styles.breakWord}>{video.title}</td>
-              <td className={styles.tableItem}>
-                {formatYoutubeDuration(video.duration)}
-              </td>
-              <td className={styles.tableItem}>
-                {video.isPopular ? 'Hiện' : 'Ẩn'}
-              </td>
-              <td className={styles.tableItem}>
-                {formatDateToLocaleString(video.createdAt)}
-              </td>
+              <td>{video.isPopular ? 'Hiện' : 'Ẩn'}</td>
+              <td>{formatDateToLocaleString(video.createdAt)}</td>
               <td>
                 {!checkboxChosen.includes(video._id) && (
                   <i
@@ -166,7 +171,7 @@ const AdminVideo = ({ videoData }) => {
                   ></i>
                 )}
                 <i
-                  onClick={showDeleteModal}
+                  onClick={onShowConfirm}
                   title={'Xóa video'}
                   className={
                     checkboxChosen.includes(video._id)
@@ -189,28 +194,18 @@ const AdminVideo = ({ videoData }) => {
           ))}
           {videoData.length === 0 && (
             <tr>
-              <td colSpan="10" className={styles.tableItem}>
-                Không có dữ liệu.
-              </td>
+              <td colSpan="10">Không có dữ liệu.</td>
             </tr>
           )}
         </tbody>
       </MainTable>
-      <Modal show={isShowDeleteModal} onHide={isShowDeleteModal} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Xóa video</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p>Đồng ý xóa video?</p>
-        </Modal.Body>
-
-        <Modal.Footer>
-          <MainButton onClick={deleteVideoIsChosen}>Đồng ý</MainButton>
-          <MainButton onClick={showDeleteModal}>Hủy</MainButton>
-        </Modal.Footer>
-      </Modal>
+      <ModalConfirm
+        onConfirm={deleteVideoIsChosen}
+        body={'Bạn có đồng ý xóa video?'}
+        header={'Xóa video'}
+      />
     </>
-  );
-};
+  )
+}
 
-export default AdminVideo;
+export default AdminVideo

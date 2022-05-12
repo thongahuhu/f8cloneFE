@@ -23,9 +23,6 @@
     cursor: none;
   }
 }
-.spinner {
-  animation: rotate 2s linear infinite;
-}
 
 @keyframes rotate {
   from {
@@ -34,10 +31,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-.tableItem {
-  text-align: center;
 }
 
 .breakWord {

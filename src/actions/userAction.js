@@ -12,13 +12,6 @@ const logout = (payload) => {
   }
 }
 
-const setLoading = (payload) => {
-  return {
-    type: 'SET_LOADING',
-    payload,
-  }
-}
-
 const setAuth = (payload) => {
   return {
     type: 'SET_AUTH',
@@ -26,16 +19,16 @@ const setAuth = (payload) => {
   }
 }
 
-const createVideo = (payload) => {
+const enrollCourse = (payload) => {
   return {
-    type: 'CREATE_VIDEO',
+    type: 'ENROLL_COURSE',
     payload,
   }
 }
 
-const createBlog = (payload) => {
+const learnedLesson = (payload) => {
   return {
-    type: 'CREATE_BLOG',
+    type: 'LEARNED_LESSON',
     payload,
   }
 }
@@ -47,4 +40,4 @@ const settings = (payload) => {
   }
 }
 
-export { login, logout, setLoading, setAuth, createVideo, createBlog, settings }
+export { login, logout, setAuth, settings, enrollCourse, learnedLesson }

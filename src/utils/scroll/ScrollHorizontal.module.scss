@@ -1,0 +1,19 @@
+.scrollHorizontal {
+  margin-top: 0 !important;
+}
+
+.continueBtn {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .scrollHorizontal {
+    flex-wrap: nowrap !important;
+    overflow: scroll !important;
+    padding: 0 !important;
+  }
+
+  .continueBtn {
+    display: flex !important;
+  }
+}

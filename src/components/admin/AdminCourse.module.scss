@@ -17,14 +17,15 @@
     color: black;
   }
 
+  &.lessons {
+    color: #146ebe;
+  }
+
   &.disabled {
     color: #ddd;
     pointer-events: none;
     cursor: none;
   }
-}
-.spinner {
-  animation: rotate 2s linear infinite;
 }
 
 @keyframes rotate {
@@ -34,10 +35,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-.tableItem {
-  text-align: center;
 }
 
 .breakWord {

@@ -1,38 +1,37 @@
-import { useState } from 'react';
-import { Modal, Button, Form, Spinner } from 'react-bootstrap';
-import { apiURL } from '../../../context/constants';
-import { useDispatch } from 'react-redux';
-import styles from './CreateVideo.module.scss';
-import { createVideo } from '../../../actions/userAction';
-import MainToast from '../../utils/toast/MainToast';
-import removeActions from '../../utils/remove-accents/removeActions';
-import MainButton from '../../utils/button/MainButton';
+import { useContext, useState } from 'react'
+import { Modal, Form, Spinner } from 'react-bootstrap'
+import { apiURL } from '../../../context/constants'
+import styles from './CreateVideo.module.scss'
+import { removeActions } from '../../../utils/format/index'
+import MainButton from '../../../utils/button/MainButton'
+import MainModal from '../../../utils/modal/MainModal'
+import { ModalContext } from '../../../context/ModalContext'
+import consoleLog from '../../../utils/console-log/consoleLog'
+import Cookies from 'js-cookie'
 
-const CreateVideo = () => {
-  const dispatch = useDispatch();
+const CreateVideo = ({ setVideoData }) => {
+  const { onShowError } = useContext(ModalContext)
 
-  const [videoId, setVideoId] = useState('');
-  const [createStatus, setCreateStatus] = useState({
-    isSuccess: false,
-    show: false,
-  });
-  const [isShowCreateModal, setIsShowCreateModal] = useState(false);
-  const [isPopular, setIsPopular] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [videoId, setVideoId] = useState('')
+  const [isShowCreateModal, setIsShowCreateModal] = useState(false)
+  const [isPopular, setIsPopular] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
-  const showCreateVideoModal = () => setIsShowCreateModal((prev) => !prev);
+  const showCreateVideoModal = () => setIsShowCreateModal((prev) => !prev)
+
+  const setLoadingAndPopularFalse = () => {
+    setIsLoading(false)
+    setIsPopular(false)
+  }
 
   const getYoutubeDataByAPI = async () => {
-    showCreateVideoModal();
-    setIsLoading(true);
-    try {
-      const res = await fetch(
-        `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${process.env.REACT_APP_YOUTUBE_API_KEY}&part=snippet,contentDetails,statistics,status`
-      );
+    showCreateVideoModal()
+    setIsLoading(true)
 
-      const data = await res.json();
-      const youtube = data.items[0];
-
+    const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${process.env.REACT_APP_YOUTUBE_API_KEY}&part=snippet,contentDetails,statistics,status`
+    const data = await getYoutubeVideo(url)
+    if (data) {
+      const youtube = data.items[0]
       const videoData = {
         videoId,
         duration: youtube.contentDetails.duration,
@@ -47,57 +46,51 @@ const CreateVideo = () => {
         likeCount: +youtube.statistics.likeCount,
         commentCount: +youtube.statistics.commentCount,
         isPopular,
-      };
+      }
 
-      createVideoByYoutubeAPIData(videoData);
-    } catch (error) {
-      console.log(error.message);
-      setCreateStatus((prev) => {
-        return {
-          ...prev,
-          isSuccess: false,
-          show: true,
-        };
-      });
-      setIsLoading(false);
-      setIsPopular(false);
+      createVideoByYoutubeAPIData(videoData)
     }
-  };
+  }
+
+  const getYoutubeVideo = async (url) => {
+    try {
+      return (await fetch(url)).json()
+    } catch (error) {
+      consoleLog(error.message)
+      onShowError()
+      setLoadingAndPopularFalse()
+    }
+  }
 
   const createVideoByYoutubeAPIData = async (videoData) => {
+    const url = `${apiURL}/admin/video/create`
+    const data = await postCreateVideo(url, videoData)
+
+    setVideoData((prev) => [data, ...prev])
+  }
+
+  const postCreateVideo = async (url, videoData) => {
+    const token = Cookies.get('token')
+    if (!token) return
+
     try {
-      const res = await fetch(`${apiURL}/admin/video/create`, {
-        method: 'POST',
-        body: JSON.stringify(videoData),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await res.json();
-
-      dispatch(createVideo({ videoData: data.video }));
-      setCreateStatus((prev) => {
-        return {
-          ...prev,
-          isSuccess: true,
-          show: true,
-        };
-      });
+      return (
+        await fetch(url, {
+          method: 'POST',
+          body: JSON.stringify(videoData),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      ).json()
     } catch (error) {
-      console.log(error.message);
-      setCreateStatus((prev) => {
-        return {
-          ...prev,
-          isSuccess: false,
-          show: true,
-        };
-      });
+      consoleLog(error.message)
+      onShowError()
     } finally {
-      setIsLoading(false);
-      setIsPopular(false);
+      setLoadingAndPopularFalse()
     }
-  };
+  }
 
   return (
     <>
@@ -109,12 +102,13 @@ const CreateVideo = () => {
         <i className="fa-brands fa-youtube"></i>
         Tạo video
       </MainButton>
-      <Modal
+      <MainModal
         show={isShowCreateModal}
         onHide={showCreateVideoModal}
         className={styles.createModal}
+        centered={true}
+        closeButton={true}
       >
-        <Modal.Header closeButton style={{ border: 'none' }}></Modal.Header>
         <Form className={styles.createForm}>
           <Form.Group className="mb-3" controlId="formBasicEmail">
             <Form.Label className={styles.heading}>Thêm video</Form.Label>
@@ -134,7 +128,7 @@ const CreateVideo = () => {
               onChange={() => setIsPopular((prev) => !prev)}
               style={{ margin: '0 8px' }}
             />
-            <Form.Label>Youtube Video ID</Form.Label>
+            <Form.Label>Hiện lên trang chủ</Form.Label>
           </Form.Group>
         </Form>
         <Modal.Footer style={{ border: 'none' }}>
@@ -165,22 +159,9 @@ const CreateVideo = () => {
             Hủy
           </MainButton>
         </Modal.Footer>
-      </Modal>
-      <MainToast
-        status={createStatus}
-        setStatus={() =>
-          setCreateStatus((prev) => {
-            return {
-              ...prev,
-              show: false,
-            };
-          })
-        }
-        successText={'Tạo video thành công!'}
-        failText={'Tạo video không thành công!'}
-      />
+      </MainModal>
     </>
-  );
-};
+  )
+}
 
-export default CreateVideo;
+export default CreateVideo

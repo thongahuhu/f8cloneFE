@@ -1,26 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import styles from './BlogSameAuthor.module.scss';
-import { Link } from 'react-router-dom';
-import { apiURL } from '../../context/constants';
+import React, { useEffect, useState } from 'react'
+import styles from './BlogSameAuthor.module.scss'
+import { Link } from 'react-router-dom'
+import { apiURL } from '../../context/constants'
+import consoleLog from '../../utils/console-log/consoleLog'
 
 const BlogSameAuthor = ({ postedBy, blogId }) => {
-  const [blogSameAuthor, setBlogSameAuthor] = useState([]);
+  const [blogSameAuthor, setBlogSameAuthor] = useState([])
 
   useEffect(() => {
-    const controller = new AbortController();
+    ;(async () => {
+      const url = `${apiURL}/blog/${blogId}/${postedBy}`
+      const data = await getBlogSameAuthor(url)
 
-    (async () => {
-      try {
-        const res = await fetch(`${apiURL}/blog/${blogId}/${postedBy}`);
-        const data = await res.json();
-        setBlogSameAuthor(data);
-      } catch (error) {
-        console.log(error.message);
-      }
-    })();
+      setBlogSameAuthor(data)
+    })()
+  }, [blogId, postedBy])
 
-    return () => controller?.abort();
-  }, [blogId, postedBy]);
+  const getBlogSameAuthor = async (url) => {
+    try {
+      return (await fetch(url)).json()
+    } catch (error) {
+      consoleLog(error.message)
+    }
+  }
 
   return (
     <div className={styles.wrapper}>
@@ -35,12 +37,12 @@ const BlogSameAuthor = ({ postedBy, blogId }) => {
         {blogSameAuthor.length > 0 &&
           blogSameAuthor.map((blog) => (
             <li key={blog._id}>
-              <Link to={`/blog/${blog.slug}`}>{blog.titleDisplay}</Link>
+              <Link to={`/blog/${blog._id}`}>{blog.titleDisplay}</Link>
             </li>
           ))}
       </ul>
     </div>
-  );
-};
+  )
+}
 
-export default BlogSameAuthor;
+export default BlogSameAuthor

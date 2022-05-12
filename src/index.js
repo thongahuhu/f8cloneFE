@@ -1,25 +1,34 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import App from './App'
-import { BrowserRouter } from 'react-router-dom'
 import './index.scss'
 import NavContextProvider from './context/NavContext'
 import { Provider } from 'react-redux'
 import store from './reducers/index'
-import LearningContextProvider from './context/LearningContext'
-import BlogContextProvider from './context/BlogContext'
+import PostContextProvider from './context/PostContext'
+import SocketContextProvider from './context/SocketContext'
+import CommentContextProvider from './context/CommentContext'
+import LessonContextProvider from './context/LessonContext'
+import ModalContextProvider from './context/ModalContext'
+import { BrowserRouter as Router } from 'react-router-dom'
 
 ReactDOM.render(
-  <BrowserRouter>
+  <Router>
     <Provider store={store}>
       <NavContextProvider>
-        <LearningContextProvider>
-          <BlogContextProvider>
-            <App />
-          </BlogContextProvider>
-        </LearningContextProvider>
+        <PostContextProvider>
+          <SocketContextProvider>
+            <CommentContextProvider>
+              <LessonContextProvider>
+                <ModalContextProvider>
+                  <App />
+                </ModalContextProvider>
+              </LessonContextProvider>
+            </CommentContextProvider>
+          </SocketContextProvider>
+        </PostContextProvider>
       </NavContextProvider>
     </Provider>
-  </BrowserRouter>,
-  document.getElementById('root'),
+  </Router>,
+  document.getElementById('root')
 )

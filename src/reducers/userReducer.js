@@ -4,12 +4,10 @@ const initialState = {
   displayName: null,
   photoURL: null,
   email: null,
-  slug: null,
   phoneNumber: null,
-  isLoading: false,
   isLoggedIn: false,
-  videoCreated: null,
-  blogCreated: null,
+  coursesEnrolled: [],
+  lessonLearned: [],
   bio: null,
   socials: {
     fb: null,
@@ -37,6 +35,8 @@ const userReducer = (state = initialState, action) => {
         isAdmin: action.payload.isAdmin,
         socials: action.payload.socials ? action.payload.socials : {},
         slug: action.payload.slug,
+        coursesEnrolled: action.payload.coursesEnrolled,
+        lessonLearned: action.payload.lessonLearned,
       }
 
     case 'SIGN_OUT':
@@ -45,13 +45,7 @@ const userReducer = (state = initialState, action) => {
         photoURL: null,
         displayName: null,
         email: null,
-        isLoggedIn: false,
-      }
-
-    case 'SET_LOADING':
-      return {
-        ...state,
-        isLoading: action.payload,
+        isLoggedIn: null,
       }
 
     case 'SET_AUTH':
@@ -69,27 +63,27 @@ const userReducer = (state = initialState, action) => {
         isAdmin: action.payload.isAdmin,
         socials: action.payload.socials ? action.payload.socials : {},
         slug: action.payload.slug,
+        coursesEnrolled: action.payload.coursesEnrolled,
+        lessonLearned: action.payload.lessonLearned,
       }
 
-    case 'CREATE_VIDEO':
-      console.log(action.payload.videoData)
+    case 'ENROLL_COURSE':
       return {
         ...state,
-        videoCreated: action.payload.videoData,
+        coursesEnrolled: action.payload.coursesEnrolled,
       }
 
-    case 'CREATE_BLOG':
+    case 'LEARNED_LESSON':
       return {
         ...state,
-        blogCreated: action.payload.blogData,
+        lessonLearned: action.payload.lessonLearned,
       }
 
     case 'SETTING':
       return {
         ...state,
-        bio: action.payload.bio ? action.payload.bio : '',
-        displayName: action.payload.fullName ? action.payload.fullName : '',
-        photoURL: action.payload.photoURL ? action.payload.photoURL : '',
+        displayName: action.payload.fullName,
+        photoURL: action.payload.photoURL,
       }
 
     default:

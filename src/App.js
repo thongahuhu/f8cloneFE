@@ -1,171 +1,102 @@
-import Blog from './views/public/Blog';
-import Courses from './views/public/Courses';
-import LearningPath from './views/public/LearningPath';
-import Home from './views/public/Home';
-import Contact from './views/public/Contact';
-import Search from './views/public/Search';
-import Privacy from './views/public/Privacy';
-import About from './views/public/About';
-import Careers from './views/public/Careers';
-import Terms from './views/public/Terms';
-import { Routes, Route } from 'react-router-dom';
-import { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import CourseSlug from './components/course/CourseSlug';
-import { useLocation } from 'react-router-dom';
-import Cookies from 'js-cookie';
-import { setAuth } from './actions/userAction';
-import { apiURL } from './context/constants';
-import BlogSlug from './components/blog/BlogSlug';
-import Auth from './views/public/Auth';
-import NotFound from './views/public/NotFound';
-import Learning from './views/private/Learning';
-import MyCourse from './views/private/MyCourse';
-import NewPost from './views/private/NewPost';
-import Settings from './views/private/Settings';
-import BookmarkPost from './views/private/BookmarkPost';
-import MyBlog from './views/private/MyBlog';
-import Admin from './views/admin/Admin';
-import EditPost from './views/private/EditPost';
-import BlogTag from './views/public/BlogTag';
-import Profile from './views/public/Profile';
+import { Fragment, useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import Cookies from 'js-cookie'
+import { setAuth } from './actions/userAction'
+import { apiURL } from './context/constants'
+import Loading from './utils/loading/Loading'
+import consoleLog from './utils/console-log/consoleLog'
+import { publicRoutes, privateRoutes, adminRoutes, authRoutes } from './routes'
+import { Routes, Route, useLocation } from 'react-router-dom'
+import NotFound from './views/public/NotFound'
+import DefaultLayout from './components/layout/default-layout/DefaultLayout'
 
 function App() {
-  const dispatch = useDispatch();
-  const location = useLocation();
+  const dispatch = useDispatch()
+  const location = useLocation()
+  const user = useSelector((state) => state.user)
 
-  const user = useSelector((state) => state.user);
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => window.scrollTo(0, 0), [location.pathname])
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [location.pathname]);
+    ;(async () => {
+      setLoading(true)
 
-  useEffect(() => {
-    const controller = new AbortController();
+      const token = Cookies.get('token')
+      if (!token) return setLoading(false)
 
-    (async () => {
-      try {
-        const token = Cookies.get('token');
-        if (!token) return;
+      const url = `${apiURL}/auth/check-user`
+      const data = await getUser(url, token)
 
-        const res = await fetch(
-          `${apiURL}/api/auth`,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
+      dispatch(setAuth({ ...data.user, accessToken: token }))
+      setLoading(false)
+    })()
+  }, [dispatch])
+
+  const getUser = async (url, token) => {
+    try {
+      return (
+        await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
           },
-          {
-            signal: controller.signal,
-          }
-        );
-
-        const data = await res.json();
-
-        dispatch(
-          setAuth({
-            ...data.user,
-            accessToken: token,
-          })
-        );
-      } catch (error) {
-        console.log(error.message);
-      }
-    })();
-
-    return () => controller?.abort();
-  }, []);
+        })
+      ).json()
+    } catch (error) {
+      consoleLog(error.message)
+    }
+  }
 
   useEffect(() => {
     console.log(
       '%cHello! 🙋',
       'font-size: 16px; font-weight: 600; color: #32c6a1'
-    );
+    )
     console.log(
-      '%cF8 front-end was built with Javascript, React, Redux, SASS, CSS module, webpack, and lots of love. \n \nF8 back-end was built with PHP, Laravel, Node, ExpressJS, MySQL, MongoDB, Redis, and lots of love. \n  \n👉 Want to work with us? Check out https://fullstack.edu.vn/careers/',
+      '%cF8 front-end was built with Javascript, React, Redux, SASS, CSS module, webpack, and lots of love. \n \nF8 back-end was built with Node, ExpressJS, MongoDB, and lots of love. \n  \n👉 Want to work with us? Check out https://fullstack.edu.vn/careers/',
       'font-size: 14px; font-weight: 500; color: #32c6a1'
-    );
-  }, []);
+    )
+  }, [])
 
-  return (
+  const handleRoute = (routes) => {
+    return routes.map((route, index) => {
+      const Page = route.component
+      let Layout = DefaultLayout
+
+      if (route.layout) {
+        Layout = route.layout
+      } else if (route.layout === null) {
+        Layout = Fragment
+      }
+
+      return (
+        <Route
+          key={index}
+          path={route.path}
+          element={
+            <Layout>
+              <Page />
+            </Layout>
+          }
+        />
+      )
+    })
+  }
+
+  return loading ? (
+    <Loading />
+  ) : (
     <Routes>
-      <Route
-        path="/login"
-        element={!user.isLoggedIn ? <Auth /> : <NotFound />}
-      />
-      <Route
-        path="/register"
-        element={!user.isLoggedIn ? <Auth /> : <NotFound />}
-      />
-      <Route
-        path="/learning/:slug"
-        element={user.isLoggedIn ? <Learning /> : <Auth />}
-      />
-      <Route
-        path="/my-course"
-        element={user.isLoggedIn ? <MyCourse /> : <Auth />}
-      />
-      <Route
-        path="/new-post"
-        element={user.isLoggedIn ? <NewPost /> : <Auth />}
-      />
-      <Route
-        path="/new-post/:id"
-        element={user.isLoggedIn ? <NewPost /> : <Auth />}
-      />
-      <Route
-        path="/edit-blog/:slug"
-        element={user.isLoggedIn ? <EditPost /> : <Auth />}
-      />
-      <Route
-        path="/settings"
-        element={user.isLoggedIn ? <Settings /> : <Auth />}
-      />
-      <Route
-        path="/bookmark-post"
-        element={user.isLoggedIn ? <BookmarkPost /> : <Auth />}
-      />
-      <Route
-        path="/my-post/drafts"
-        element={user.isLoggedIn ? <MyBlog /> : <Auth />}
-      />
-      <Route
-        path="/my-post/published"
-        element={user.isLoggedIn ? <MyBlog /> : <Auth />}
-      />
-      <Route
-        path="/admin/course"
-        element={user.isLoggedIn && user.isAdmin ? <Admin /> : <NotFound />}
-      />
-      <Route
-        path="/admin/blog"
-        element={user.isLoggedIn && user.isAdmin ? <Admin /> : <NotFound />}
-      />
-      <Route
-        path="/admin/video"
-        element={user.isLoggedIn && user.isAdmin ? <Admin /> : <NotFound />}
-      />
-      <Route path="/courses" element={<Courses />} />
-      <Route path="/courses/:slug" element={<CourseSlug />} />
-      <Route path="/blog/:slug" element={<BlogSlug />} />
-      <Route path="/learning-path" element={<LearningPath />} />
-      <Route path="/blog" element={<Blog />} />
-      <Route path="/blog/tag/:tag" element={<BlogTag />} />
-      <Route path="/search" element={<Search />} />
-      <Route path="/search/course" element={<Search />} />
-      <Route path="/search/blog" element={<Search />} />
-      <Route path="/search/video" element={<Search />} />
-      <Route path="/contact-us" element={<Contact />} />
-      <Route path="/privacy" element={<Privacy />} />
-      <Route path="/terms" element={<Terms />} />
-      <Route path="/careers" element={<Careers />} />
-      <Route path="/about-us" element={<About />} />
-      <Route path="/:userSlug" element={<Profile />} />
+      {handleRoute(publicRoutes)}
+      {user.isLoggedIn && handleRoute(privateRoutes)}
+      {user.isLoggedIn && user.isAdmin && handleRoute(adminRoutes)}
+      {!user.isLoggedIn && handleRoute(authRoutes)}
       <Route path="*" element={<NotFound />} />
-      <Route path="/" element={<Home />} />
     </Routes>
-  );
+  )
 }
 
-export default App;
+export default App

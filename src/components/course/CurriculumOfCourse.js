@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import CourseCollapse from './CourseCollapse'
 import styles from './CurriculumOfCourse.module.scss'
-import '../../sass/_float.scss'
 
-const CurriculumOfCourse = ({ episodeList }) => {
+const CurriculumOfCourse = ({ episodeList, totalLesson }) => {
   const [collapsedCurriculum, setCollapsedCurriculum] = useState([])
   const [collapsedCurriculumAll, setCollapsedCurriculumAll] = useState([])
   const [isCollapsedCurriculumAll, setIsCollapsedCurriculumAll] =
@@ -11,19 +10,21 @@ const CurriculumOfCourse = ({ episodeList }) => {
 
   useEffect(() => {
     episodeList.map((episode) =>
-      setCollapsedCurriculumAll((prev) => [...prev, episode.id]),
+      setCollapsedCurriculumAll((prev) => [...prev, episode._id])
     )
   }, [episodeList])
 
   const collapseCurriculumSingle = (id) =>
     setCollapsedCurriculum((prev) => {
       const isOpen = prev.includes(id)
+
       if (isOpen) {
         const newCollapsed = prev.filter((item) => item !== id)
         newCollapsed.length !== collapsedCurriculumAll.length &&
           setIsCollapsedCurriculumAll(false)
         return newCollapsed
       }
+
       const newCollapsed = [...prev, id]
       newCollapsed.length === collapsedCurriculumAll.length &&
         setIsCollapsedCurriculumAll(true)
@@ -34,31 +35,27 @@ const CurriculumOfCourse = ({ episodeList }) => {
     if (!isCollapsedCurriculumAll) {
       setCollapsedCurriculum((prev) => [...prev, ...collapsedCurriculumAll])
       setIsCollapsedCurriculumAll(true)
-      return
+    } else {
+      setCollapsedCurriculum([])
+      setIsCollapsedCurriculumAll(false)
     }
-    setCollapsedCurriculum([])
-    setIsCollapsedCurriculumAll(false)
   }
 
   return (
     <div className={styles.curriculumOfCourse}>
       <div className={styles.headerSticky}>
         <div className={styles.headerBlock}>
-          <h3 className={'floatLeft'}>Nội dung khóa học</h3>
+          <h3>Nội dung khóa học</h3>
         </div>
       </div>
       <div className={styles.subHeadWrapper}>
         <ul>
           <li>
-            <strong>4</strong> chương
+            <strong>{episodeList.length}</strong> chương
           </li>
           <li className={styles.dot}>.</li>
           <li>
-            <strong>10</strong> bài học
-          </li>
-          <li className={styles.dot}>.</li>
-          <li>
-            Thời lượng <strong>03 giờ 25 phút</strong>
+            <strong>{totalLesson.length}</strong> bài học
           </li>
         </ul>
         <div className={styles.toggleBtn} onClick={handleCollapseCurriculumAll}>
@@ -68,32 +65,34 @@ const CurriculumOfCourse = ({ episodeList }) => {
       <div className={styles.curriculumPanel}>
         <div className={styles.panelGroup}>
           {episodeList.map((episode) => (
-            <div className={styles.panel} key={episode.id}>
+            <div className={styles.panel} key={episode._id}>
               <div
                 className={styles.panelHeading}
-                onClick={() => collapseCurriculumSingle(episode.id)}
+                onClick={() => collapseCurriculumSingle(episode._id)}
               >
                 <h5 className={styles.panelTitle}>
                   <div className={styles.headLine}>
-                    {collapsedCurriculum.includes(episode.id) ? (
-                      <i className="fa-solid fa-dash"></i>
+                    {collapsedCurriculum.includes(episode._id) ? (
+                      <i className="fa-solid fa-minus"></i>
                     ) : (
                       <i className="fa-solid fa-plus"></i>
                     )}
                     <div className={`${styles.floatLeft} ${styles.groupName}`}>
                       <strong>{episode.title}</strong>
                     </div>
-                    <span className={`floatRight ${styles.timeOfSection}`}>
+                    <span className={styles.timeOfSection}>
                       {episode.lessons.length} bài học
                     </span>
                   </div>
                 </h5>
               </div>
-              <CourseCollapse
-                collapseCurriculum={collapsedCurriculum}
-                episodeId={episode.id}
-                lessons={episode.lessons}
-              />
+              {episode.lessons.length > 0 && (
+                <CourseCollapse
+                  collapsedCurriculum={collapsedCurriculum}
+                  episodeId={episode._id}
+                  lessons={episode.lessons}
+                />
+              )}
             </div>
           ))}
         </div>

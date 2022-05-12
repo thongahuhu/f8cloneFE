@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react'
 import { Image } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
-import { apiURL } from '../../context/constants'
-import timeSince from '../utils/timeSince/timeSince'
+import { timeSince } from '../../utils/format/index'
 import styles from './BlogHighlights.module.scss'
 import f8Logo from '../../asset/images/f8_icon.png'
 
@@ -29,10 +27,10 @@ const BlogHighlights = ({ blogHighlight }) => {
                 {timeSince(blog.createdAt)}
               </span>
             </div>
-            <Link to={`/blog/${blog.slug}`}>
+            <Link to={`/blog/${blog._id}`}>
               <h3 className={styles.title}>{blog.titleDisplay}</h3>
             </Link>
-            <Link to={`/blog/${blog.slug}`}>
+            <Link to={`/blog/${blog._id}`}>
               <Image
                 src={blog.image ? blog.image : f8Logo}
                 className={styles.thumb}

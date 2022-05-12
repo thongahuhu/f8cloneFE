@@ -1,19 +1,9 @@
-import React from 'react'
-import CardButton from '../../utils/card/CardButton'
-import MainCard from '../../utils/card/MainCard'
+import MainCard from '../../../utils/card/MainCard'
 import styles from './VideoItem.module.scss'
-import youtubeDurationFormat from 'youtube-duration-format'
-import MainButton from '../../utils/button/MainButton'
+import MainButton from '../../../utils/button/MainButton'
+import { formatDuration, formatNumber } from '../../../utils/format/index'
 
 const VideoItem = ({ video }) => {
-  const formatYoutubeStatistic = (number) =>
-    new Intl.NumberFormat(['ban', 'id']).format(number)
-
-  const formatYoutubeDuration = (duration) => {
-    const durationFormatted = youtubeDurationFormat(duration)
-    return durationFormatted
-  }
-
   return (
     <MainCard>
       <a
@@ -31,7 +21,7 @@ const VideoItem = ({ video }) => {
               <i className="fa-solid fa-play"></i>
             </div>
             <div className={styles.duration}>
-              {formatYoutubeDuration(video.duration)}
+              {formatDuration(video.duration)}
             </div>
             <div></div>
           </div>
@@ -49,15 +39,15 @@ const VideoItem = ({ video }) => {
       <ul className={styles.stats}>
         <li>
           <i className="fa-solid fa-eye"></i>
-          <span>{formatYoutubeStatistic(video.viewCount)}</span>
+          <span>{formatNumber(video.viewCount)}</span>
         </li>
         <li>
           <i className="fa-solid fa-thumbs-up"></i>
-          <span>{formatYoutubeStatistic(video.likeCount)}</span>
+          <span>{formatNumber(video.likeCount)}</span>
         </li>
         <li>
           <i className="fa-solid fa-comment"></i>
-          <span>{formatYoutubeStatistic(video.commentCount)}</span>
+          <span>{formatNumber(video.commentCount)}</span>
         </li>
       </ul>
     </MainCard>
